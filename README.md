@@ -174,10 +174,12 @@ is passed chunk by chunk to `Mp3FrameCounter`, a small state machine:
 
 - **start**: checks for an ID3v2 tag and skips it, even across many chunks.
 - **synced**: expects the next header exactly where the last frame ended,
-  counts it, and skips the frame body without copying it.
+  counts it, and skips the frame body without copying it. A header with a
+  different sample rate goes back to **searching**, so it has to be confirmed
+  (a real rate change, e.g. concatenated files, still counts in full).
 - **searching**: when out of sync (junk, corruption), jumps to the next `0xFF`
-  byte. A header found here only counts if **another valid header follows
-  it**, so stray bytes aren't mistaken for frames.
+  byte. A header found here only counts if **another valid header with the
+  same sample rate follows it**, so stray bytes aren't mistaken for frames.
 
 At most one partial frame (< 1.5 KB) is carried between chunks, so memory
 use doesn't grow with file size. Async iteration gives backpressure, so the

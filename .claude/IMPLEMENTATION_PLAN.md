@@ -127,6 +127,11 @@ the decision in the README and in a code comment. (Could expose
   accept a resynced header if **the following header (at `+frameLength`) is also
   valid** — or the stream ends exactly there. Same check applies to the very first
   frame. Keep this simple: one confirmation frame.
+- The confirming header must have the **same sample rate**, and in sync a
+  header with a different rate drops back to searching rather than being
+  counted. A genuine rate change (concatenated files) is then confirmed like
+  any new frame, so it's still counted in full, as ffprobe does.
+- Headers with the reserved emphasis value (`0b10`) are rejected as invalid.
 - Track `bytesSkipped` / `resyncCount` internally for logging; useful for debugging
   and a talking point.
 
@@ -354,6 +359,8 @@ Rules of engagement:
        on keep-alive). Tested over a real socket.
     3. A client disconnecting mid-upload is logged at info level as
        `REQUEST_ABORTED` instead of an error-level "Unhandled error" 500.
+    4. Tighter false-sync filtering (§3.4): reject the reserved emphasis
+       value, and require consistent sample rates between frames.
 
 Commit early and often with conventional-commit messages.
 
