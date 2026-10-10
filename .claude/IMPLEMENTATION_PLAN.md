@@ -17,16 +17,16 @@ scalability (large files), and git hygiene / structured approach.
 
 ## 1. Tech stack
 
-| Concern         | Choice                                   | Why |
-|-----------------|------------------------------------------|-----|
-| Runtime         | Node 22 (installed: v22.22.1)            | Current LTS; native `stream`, `fetch`, etc. |
-| Language        | TypeScript, `strict: true`, `noUncheckedIndexedAccess` | Required; strict flags catch table lookup bugs |
-| HTTP framework  | Fastify + `@fastify/multipart`           | TS-first, streams multipart parts (no buffering whole file), built-in JSON serialisation & `app.inject()` for tests |
-| Dev runner      | `tsx` (watch mode)                       | Zero-config TS execution |
-| Build           | `tsc` → `dist/`                          | Simple, no bundler needed |
-| Tests           | Vitest                                   | Fast, native TS/ESM |
-| Lint / format   | ESLint (flat config + `typescript-eslint` strict-type-checked) + Prettier | "Standardised tooling" criterion |
-| Verification    | `ffprobe` (installed) and/or `mediainfo` (`sudo apt install mediainfo`) | Ground truth for frame counts |
+| Concern        | Choice                                                                    | Why                                                                                                                 |
+| -------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Runtime        | Node 22 (installed: v22.22.1)                                             | Current LTS; native `stream`, `fetch`, etc.                                                                         |
+| Language       | TypeScript, `strict: true`, `noUncheckedIndexedAccess`                    | Required; strict flags catch table lookup bugs                                                                      |
+| HTTP framework | Fastify + `@fastify/multipart`                                            | TS-first, streams multipart parts (no buffering whole file), built-in JSON serialisation & `app.inject()` for tests |
+| Dev runner     | `tsx` (watch mode)                                                        | Zero-config TS execution                                                                                            |
+| Build          | `tsc` → `dist/`                                                           | Simple, no bundler needed                                                                                           |
+| Tests          | Vitest                                                                    | Fast, native TS/ESM                                                                                                 |
+| Lint / format  | ESLint (flat config + `typescript-eslint` strict-type-checked) + Prettier | "Standardised tooling" criterion                                                                                    |
+| Verification   | `ffprobe` (installed) and/or `mediainfo` (`sudo apt install mediainfo`)   | Ground truth for frame counts                                                                                       |
 
 Scripts in `package.json`: `dev`, `build`, `start`, `test`, `test:watch`,
 `lint`, `format`, `format:check`, `typecheck`.
@@ -70,16 +70,16 @@ adapter. This keeps the core easily unit-testable and swappable.
 
 ### 3.1 Frame header (4 bytes, 32 bits — `AAAAAAAA AAABBCCD EEEEFFGH IIJJKLMM`)
 
-| Bits | Field             | MPEG-1 Layer III requirement |
-|------|-------------------|------------------------------|
-| A (11) | Frame sync      | all `1` → `byte0 === 0xFF && (byte1 & 0xE0) === 0xE0` |
-| B (2)  | Version         | `11` = MPEG-1 (reject others: out of scope) |
-| C (2)  | Layer           | `01` = Layer III |
+| Bits   | Field           | MPEG-1 Layer III requirement                               |
+| ------ | --------------- | ---------------------------------------------------------- |
+| A (11) | Frame sync      | all `1` → `byte0 === 0xFF && (byte1 & 0xE0) === 0xE0`      |
+| B (2)  | Version         | `11` = MPEG-1 (reject others: out of scope)                |
+| C (2)  | Layer           | `01` = Layer III                                           |
 | D (1)  | Protection      | `0` → 16-bit CRC follows header (affects Xing offset only) |
 | E (4)  | Bitrate index   | `0000` = free format (unsupported → invalid), `1111` = bad |
-| F (2)  | Sample rate idx | `11` reserved → invalid |
-| G (1)  | Padding         | adds 1 byte to frame |
-| I (2)  | Channel mode    | `11` = mono (affects side-info size for Xing detection) |
+| F (2)  | Sample rate idx | `11` reserved → invalid                                    |
+| G (1)  | Padding         | adds 1 byte to frame                                       |
+| I (2)  | Channel mode    | `11` = mono (affects side-info size for Xing detection)    |
 
 **MPEG-1 Layer III bitrates (kbps)**, index 1–14:
 `32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320`
@@ -97,7 +97,7 @@ valid MPEG-1 L3 header (no exceptions on the hot path).
 ### 3.2 Things in the file that are NOT audio frames
 
 1. **ID3v2 tag** at start: `"ID3"`, 2 version bytes, 1 flags byte, 4-byte
-   *syncsafe* size (7 bits per byte). Total skip = `10 + size` (+10 if footer flag
+   _syncsafe_ size (7 bits per byte). Total skip = `10 + size` (+10 if footer flag
    `0x10` set). Must be skipped explicitly — tag payload can contain false sync bytes.
 2. **Xing / Info / VBRI header frame**: the first frame of LAME-encoded files is a
    valid-looking frame whose payload holds metadata, not audio. Located after the
@@ -167,19 +167,20 @@ curl -F "file=@test/fixtures/sample.mp3" http://localhost:3000/file-upload
 
 **Responses** (all `Content-Type: application/json; charset=utf-8`):
 
-| Case | Status | Body |
-|------|--------|------|
-| Success | 200 | `{ "frameCount": n }` |
-| Not multipart / no file part | 400 | `{ "error": { "code": "MISSING_FILE", "message": "..." } }` |
-| Empty file | 400 | `EMPTY_FILE` |
-| File exceeds size limit | 413 | `FILE_TOO_LARGE` |
-| No valid MPEG-1 Layer III frames found | 422 | `INVALID_MP3` |
-| Unknown route / wrong method | 404 / 405 | Fastify default, normalised to same error shape |
-| Unexpected | 500 | `INTERNAL_ERROR` (generic message, details logged only) |
+| Case                                   | Status    | Body                                                        |
+| -------------------------------------- | --------- | ----------------------------------------------------------- |
+| Success                                | 200       | `{ "frameCount": n }`                                       |
+| Not multipart / no file part           | 400       | `{ "error": { "code": "MISSING_FILE", "message": "..." } }` |
+| Empty file                             | 400       | `EMPTY_FILE`                                                |
+| File exceeds size limit                | 413       | `FILE_TOO_LARGE`                                            |
+| No valid MPEG-1 Layer III frames found | 422       | `INVALID_MP3`                                               |
+| Unknown route / wrong method           | 404 / 405 | Fastify default, normalised to same error shape             |
+| Unexpected                             | 500       | `INTERNAL_ERROR` (generic message, details logged only)     |
 
 Notes:
+
 - Don't trust the client's MIME type / file extension (browsers & curl vary);
-  validate by *content*. Optionally log a warning for unexpected mimetypes.
+  validate by _content_. Optionally log a warning for unexpected mimetypes.
 - Define the success response with a Fastify JSON schema (`response: { 200: … }`)
   for fast serialisation + a typed contract. Use a TypeBox or plain schema + TS
   type — keep it lightweight.
@@ -192,6 +193,7 @@ Notes:
 ## 6. Testing strategy
 
 **Unit (pure, synthetic data via `test/helpers/buildFrame.ts`):**
+
 - `parseFrameHeader`: valid header for each sample rate; rejects MPEG-2/2.5,
   Layer I/II, bitrate index 0 and 15, sample rate idx 3, bad sync.
 - `frameLength`: known values (128 kbps / 44.1 kHz → 417 or 418 with padding;
@@ -205,23 +207,26 @@ Notes:
   - trailing ID3v1 → N
   - junk between frames → resyncs correctly
   - truncated final frame → decision: count it? (document; mediainfo/ffprobe
-    behaviour to check — likely *don't* count an incomplete frame)
+    behaviour to check — likely _don't_ count an incomplete frame)
   - **same input fed in 1-byte chunks, random chunk sizes** → identical result
   - empty / non-MP3 input → 0 → maps to 422
   - VBR (mixed bitrates) frames
 
 **Integration (`app.inject()`):**
+
 - Sample file → 200, correct `frameCount`, `content-type` is JSON.
 - No file / wrong field / non-multipart body → 400.
 - Text file renamed `.mp3` → 422.
 - Oversized upload (with a tiny limit configured in test) → 413.
 
 **Ground truth:**
+
 ```bash
 ffprobe -v error -select_streams a:0 -count_packets \
   -show_entries stream=nb_read_packets -of csv=p=0 sample.mp3
 mediainfo --Inform="Audio;%FrameCount%" sample.mp3
 ```
+
 Optionally generate extra fixtures with the installed `ffmpeg`
 (e.g. CBR 128k stereo, VBR, mono, 48 kHz, with/without `-write_xing 0`) and assert
 our count matches ffprobe for each.
@@ -236,13 +241,14 @@ All production code is written **test-first** using red → green → refactor:
 
 1. **Red** — write the smallest failing test that describes the next behaviour
    (e.g. "rejects MPEG-2 headers", "counts frames split across 1-byte chunks").
-   Run `npm test` and confirm it fails *for the expected reason*.
+   Run `npm test` and confirm it fails _for the expected reason_.
 2. **Green** — write the minimum code to make it pass. No speculative features.
 3. **Refactor** — tidy names, extract helpers, remove duplication with the tests
    green. Run `npm run lint && npm run typecheck`.
 4. Repeat for the next behaviour.
 
 Rules of engagement:
+
 - No file in `src/` gets new behaviour without a test that first failed.
 - Work outside-in where it helps: write the **acceptance test first**
   (`POST /file-upload` with `sample.mp3` → `200 { "frameCount": 6089 }`). It stays
@@ -258,9 +264,9 @@ Rules of engagement:
 
 ### Steps
 
-1. **Scaffold** — `npm init`, TS config (strict), ESLint, Prettier, Vitest
+1. ✅ **Scaffold** — `npm init`, TS config (strict), ESLint, Prettier, Vitest
    (+ `@vitest/coverage-v8`), `.gitignore`, `.nvmrc`, npm scripts. Move the
-   sample to `test/fixtures/sample.mp3` (`git mv`). Add one trivial test to prove
+   sample to `test/fixtures/sample.mp3`. Add one trivial test to prove
    the test runner works. Commit: `chore: scaffold TypeScript project with tooling`.
 2. **Acceptance test (red)** — integration test for `POST /file-upload` with the
    sample expecting `{ frameCount: 6089 }` and a JSON content type. Marked
