@@ -44,6 +44,17 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
 
   // Every error response has the same JSON shape: { error: { code, message } }
   app.setErrorHandler<HandledError>((error, request, reply) => {
+    // The client disconnected mid-upload (the stream errors differ for raw
+    // and multipart bodies). Not a bug, and no one will see the response.
+    if (request.raw.readableAborted) {
+      request.log.info({ err: error }, 'Client aborted the request');
+      return reply
+        .status(400)
+        .send(
+          errorBody('REQUEST_ABORTED', 'The upload was aborted by the client.'),
+        );
+    }
+
     // Too large: close the connection after replying. Otherwise Node reads
     // (and discards) the rest of the upload to reuse the connection.
     if (error.statusCode === 413) reply.header('connection', 'close');
