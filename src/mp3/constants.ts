@@ -22,6 +22,9 @@ export const BITRATES_KBPS = [
 /** MPEG-1 sample rates in Hz, indexed by the 2-bit sample-rate index. 3 is reserved. */
 export const SAMPLE_RATES_HZ = [44100, 48000, 32000, null] as const;
 
+/** Emphasis bits (header bits 0-1) value that is reserved, i.e. never valid. */
+export const RESERVED_EMPHASIS_BITS = 0b10;
+
 /** Channel modes, indexed by the 2-bit channel-mode field. */
 export const CHANNEL_MODES = [
   'stereo',

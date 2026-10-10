@@ -25,6 +25,8 @@ export interface FrameHeaderOptions {
   padding?: boolean;
   /** 2 bits: 0 stereo, 1 joint stereo, 2 dual channel, 3 mono */
   channelModeBits?: number;
+  /** 2 bits: 0 none, 1 50/15 ms, 2 reserved, 3 CCITT J.17 */
+  emphasisBits?: number;
 }
 
 const MPEG1_LAYER3_BITRATES_KBPS = [
@@ -41,6 +43,7 @@ const DEFAULTS: Required<FrameHeaderOptions> = {
   sampleRateIndex: 0,
   padding: false,
   channelModeBits: 0b01,
+  emphasisBits: 0b00,
 };
 
 export function buildFrameHeader(options: FrameHeaderOptions = {}): Buffer {
@@ -49,7 +52,7 @@ export function buildFrameHeader(options: FrameHeaderOptions = {}): Buffer {
     0xff,
     0xe0 | (o.versionBits << 3) | (o.layerBits << 1) | (o.crc ? 0 : 1),
     (o.bitrateIndex << 4) | (o.sampleRateIndex << 2) | (o.padding ? 0b10 : 0),
-    o.channelModeBits << 6,
+    (o.channelModeBits << 6) | o.emphasisBits,
   ]);
 }
 

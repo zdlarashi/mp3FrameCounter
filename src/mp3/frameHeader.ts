@@ -4,6 +4,7 @@ import {
   FRAME_HEADER_SIZE,
   LAYER3_BITS,
   MPEG1_VERSION_BITS,
+  RESERVED_EMPHASIS_BITS,
   SAMPLES_PER_FRAME,
   SAMPLE_RATES_HZ,
   type ChannelMode,
@@ -57,6 +58,8 @@ export function parseFrameHeader(
   const bitrateKbps = BITRATES_KBPS[(b2 >> 4) & 0b1111] ?? null;
   const sampleRate = SAMPLE_RATES_HZ[(b2 >> 2) & 0b11] ?? null;
   if (bitrateKbps === null || sampleRate === null) return null;
+  // No encoder writes the reserved value, so it means these bytes aren't a header.
+  if ((b3 & 0b11) === RESERVED_EMPHASIS_BITS) return null;
 
   const padding = (b2 & 0b10) !== 0;
   const channelMode = CHANNEL_MODES[(b3 >> 6) & 0b11] ?? 'stereo';

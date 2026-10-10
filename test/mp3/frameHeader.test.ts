@@ -65,6 +65,10 @@ describe('parseFrameHeader', () => {
     );
   });
 
+  it.each([0b00, 0b01, 0b11])('accepts emphasis bits %i', (emphasisBits) => {
+    expect(parseFrameHeader(buildFrameHeader({ emphasisBits }))).not.toBeNull();
+  });
+
   it('reports a CRC when the protection bit is 0', () => {
     expect(parseFrameHeader(buildFrameHeader({ crc: true }))).toMatchObject({
       hasCrc: true,
@@ -95,6 +99,7 @@ describe('parseFrameHeader', () => {
       ['free-format bitrate', buildFrameHeader({ bitrateIndex: 0 })],
       ['bad bitrate index', buildFrameHeader({ bitrateIndex: 15 })],
       ['reserved sample rate', buildFrameHeader({ sampleRateIndex: 3 })],
+      ['reserved emphasis', buildFrameHeader({ emphasisBits: 0b10 })],
     ])('%s', (_description, bytes) => {
       expect(parseFrameHeader(bytes)).toBeNull();
     });
