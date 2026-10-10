@@ -206,8 +206,8 @@ Notes:
   - Xing frame + frames → N (excluded)
   - trailing ID3v1 → N
   - junk between frames → resyncs correctly
-  - truncated final frame → decision: count it? (document; mediainfo/ffprobe
-    behaviour to check — likely _don't_ count an incomplete frame)
+  - truncated final frame → counted if its header is intact (matches ffprobe;
+    see Open items)
   - **same input fed in 1-byte chunks, random chunk sizes** → identical result
   - empty / non-MP3 input → 0 → maps to 422
   - VBR (mixed bitrates) frames
@@ -275,7 +275,7 @@ Rules of engagement:
    valid/invalid headers and frame lengths → `constants.ts`, `frameHeader.ts`.
    Commit: `feat(mp3): parse MPEG-1 Layer III frame headers`.
 4. ✅ **ID3v2 skipping (TDD)** — syncsafe/footer tests → `id3.ts`.
-5. **Streaming counter (TDD)** — tests for N frames, junk/resync, trailing
+5. ✅ **Streaming counter (TDD)** — tests for N frames, junk/resync, trailing
    ID3v1, truncated final frame, 1-byte & random chunking → `Mp3FrameCounter`.
 6. **Xing/Info/VBRI exclusion (TDD)** — mono/stereo/CRC offset tests → `xing.ts`,
    integrate into the counter.
@@ -327,5 +327,6 @@ Commit early and often with conventional-commit messages.
 ## Open items
 
 - [ ] Optionally cross-check with `mediainfo` (`sudo apt install mediainfo`).
-- [ ] Decide truncated-final-frame behaviour (test against an ffmpeg-generated
-      file cut mid-frame and match ffprobe).
+- [x] Truncated final frame: **counted** if its 4-byte header is intact and
+      in sync. Matches ffprobe (a 128 kbps file cut 200 or 410 bytes short
+      still reports all 78 packets). A partial header (< 4 bytes) is not counted.
