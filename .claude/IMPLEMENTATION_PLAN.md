@@ -186,6 +186,7 @@ curl -F "file=@test/fixtures/sample.mp3" http://localhost:3000/file-upload
 | No body, JSON body, or form without a file | 400    | `{ "error": { "code": "MISSING_FILE", "message": "..." } }`  |
 | Other content type (e.g. `image/png`)      | 415    | `FST_ERR_CTP_INVALID_MEDIA_TYPE` (Fastify), same error shape |
 | Empty file                                 | 400    | `EMPTY_FILE`                                                 |
+| Client disconnects mid-upload              | 400    | `REQUEST_ABORTED` (logged at info; no one sees the response) |
 | File exceeds size limit                    | 413    | `FILE_TOO_LARGE`                                             |
 | No valid MPEG-1 Layer III frames found     | 422    | `INVALID_MP3`                                                |
 | Unknown route / wrong method               | 404    | `NOT_FOUND`                                                  |
@@ -342,6 +343,17 @@ Rules of engagement:
     `audio/mpeg`, `audio/mp3` and `application/octet-stream` bodies stream
     into the same counter (`routes/uploadSource.ts`), with the size limit
     checked from Content-Length and while reading (chunked uploads).
+12. ✅ **Review fixes** — from a code review of the finished repo, each
+    red → green with its own commit:
+    1. 4xx errors without a `code` (e.g. `http-errors`) get one derived from
+       the status (403 → `FORBIDDEN`), keeping the §5 error shape.
+    2. Oversized uploads: multipart files go through the same `limitSize()`
+       wrapper as raw bodies (the plugin only ends a truncated file stream
+       when the part ends, so the 413 came after the whole upload), and 413s
+       send `Connection: close` (otherwise Node drains the rest of a raw body
+       on keep-alive). Tested over a real socket.
+    3. A client disconnecting mid-upload is logged at info level as
+       `REQUEST_ABORTED` instead of an error-level "Unhandled error" 500.
 
 Commit early and often with conventional-commit messages.
 

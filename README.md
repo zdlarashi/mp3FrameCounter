@@ -71,7 +71,8 @@ curl -H "Content-Type: audio/mpeg" --data-binary @test/fixtures/sample.mp3 \
 | ------ | -------------------------------- | ------------------------------------------------------------ |
 | 400    | `MISSING_FILE`                   | No body, a non-file body (e.g. JSON), or a form with no file |
 | 400    | `EMPTY_FILE`                     | The uploaded file is 0 bytes                                 |
-| 413    | `FILE_TOO_LARGE`                 | The file exceeds `MAX_FILE_SIZE_MB`                          |
+| 400    | `REQUEST_ABORTED`                | The client disconnected mid-upload (logged at info, not 500) |
+| 413    | `FILE_TOO_LARGE`                 | The file exceeds `MAX_FILE_SIZE_MB`; the connection closes   |
 | 415    | `FST_ERR_CTP_INVALID_MEDIA_TYPE` | Unsupported content type (e.g. `image/png`)                  |
 | 422    | `INVALID_MP3`                    | No MPEG-1 Layer III frames found in the file                 |
 | 404    | `NOT_FOUND`                      | Unknown route                                                |
@@ -269,6 +270,12 @@ mediainfo --Inform="Audio;%FrameCount%" file.mp3
   stream into the same counter and enforce the same size limit. For raw
   bodies that limit is checked up front from `Content-Length` and again
   while reading, which covers chunked uploads.
+- **Oversized uploads are cut off at the limit.** Reading stops at the first
+  byte over it and the 413 closes the connection, so the server never
+  receives the rest. The multipart plugin's own limit isn't enough: it only
+  ends the file stream when the part ends, i.e. after the whole upload has
+  arrived. This is tested over a real socket, since `inject()` buffers the
+  whole payload.
 - **Validated by content, not MIME type or extension.** Clients label
   uploads inconsistently (`audio/mpeg`, `audio/mp3`,
   `application/octet-stream`), so the parser decides.
