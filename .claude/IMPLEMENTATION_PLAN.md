@@ -271,7 +271,7 @@ Rules of engagement:
 2. ✅ **Acceptance test (red)** — integration test for `POST /file-upload` with the
    sample expecting `{ frameCount: 6089 }` and a JSON content type. Marked
    `it.fails`/`it.todo` until step 8 makes it pass.
-3. **Header parsing (TDD)** — `buildFrame` test helper first, then tests for
+3. ✅ **Header parsing (TDD)** — `buildFrame` test helper first, then tests for
    valid/invalid headers and frame lengths → `constants.ts`, `frameHeader.ts`.
    Commit: `feat(mp3): parse MPEG-1 Layer III frame headers`.
 4. **ID3v2 skipping (TDD)** — syncsafe/footer tests → `id3.ts`.
