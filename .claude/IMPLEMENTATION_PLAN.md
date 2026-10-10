@@ -58,6 +58,9 @@ test/
   mp3/*.test.ts          # unit tests
   routes/fileUpload.test.ts  # integration tests via app.inject()
   fixtures/sample.mp3    # provided sample file
+  fixtures/generated/    # ffmpeg-generated fixtures + manifest.json (step 6)
+scripts/
+  generate-fixtures.sh   # regenerates test/fixtures/generated
 ```
 
 Key design principle: **the MP3 parsing is framework-agnostic** — pure functions plus
@@ -227,9 +230,31 @@ ffprobe -v error -select_streams a:0 -count_packets \
 mediainfo --Inform="Audio;%FrameCount%" sample.mp3
 ```
 
-Optionally generate extra fixtures with the installed `ffmpeg`
-(e.g. CBR 128k stereo, VBR, mono, 48 kHz, with/without `-write_xing 0`) and assert
-our count matches ffprobe for each.
+**Encoder-generated fixtures (step 6).** Synthetic frames come from our own
+test helper, so they share our understanding of the format. Real encoder
+output, checked against ffprobe, tests against reality:
+
+- `scripts/generate-fixtures.sh` makes ~1 s clips with `ffmpeg`/libmp3lame
+  and writes `test/fixtures/generated/manifest.json` with each file's
+  description and ffprobe frame count.
+- The generated `.mp3` files and the manifest are committed, so running the
+  tests doesn't need ffmpeg. The script is there to show how they were made and
+  to regenerate them.
+- One parametrised test runs every fixture through the counter and compares
+  the result with the manifest.
+
+| Fixture                         | What it exercises                                           |
+| ------------------------------- | ----------------------------------------------------------- |
+| CBR 128k, stereo, 44.1 kHz      | `Info` tag in the first frame                               |
+| VBR (`-q:a 4`)                  | `Xing` tag, varying frame sizes                             |
+| Mono                            | Xing tag at the mono offset (17 bytes of side info, not 32) |
+| 48 kHz, 32 kHz                  | the other sample rates with real frame sizes                |
+| No Xing (`-write_xing 0`)       | the first frame is audio and must be counted                |
+| ID3v2 + embedded JPEG cover art | sync-like bytes (`FF D8 FF`) inside the tag                 |
+| ID3v1 trailer                   | trailing tag after the last frame                           |
+
+VBRI headers (Fraunhofer encoder only) and CRC-protected frames can't be
+produced with ffmpeg, so they stay covered by synthetic tests.
 
 ---
 
@@ -277,8 +302,14 @@ Rules of engagement:
 4. ✅ **ID3v2 skipping (TDD)** — syncsafe/footer tests → `id3.ts`.
 5. ✅ **Streaming counter (TDD)** — tests for N frames, junk/resync, trailing
    ID3v1, truncated final frame, 1-byte & random chunking → `Mp3FrameCounter`.
-6. **Xing/Info/VBRI exclusion (TDD)** — mono/stereo/CRC offset tests → `xing.ts`,
-   integrate into the counter.
+6. **Xing/Info/VBRI exclusion (TDD)**
+   1. Add `scripts/generate-fixtures.sh`, the generated fixtures and the
+      manifest (§6), plus a parametrised test comparing the counter with
+      ffprobe. **Red:** files with an Info/Xing tag are off by one.
+   2. Unit tests for detecting the tag at the stereo, mono and CRC offsets
+      (Xing, Info) and at VBRI's fixed offset → `xing.ts`.
+   3. Counter tests showing the tag frame is excluded only when it is the
+      first frame → integrate into `Mp3FrameCounter`. Fixture test turns green.
 7. **Sample-file unit test** — `countFrames(createReadStream(sample))` → 6089.
 8. **HTTP layer (TDD)** — integration tests for each status code in §5 first →
    `app.ts`, `server.ts`, `config.ts`, route, error classes, error handler.
@@ -286,8 +317,7 @@ Rules of engagement:
 9. **Docs** — README: requirements, install, run (dev/prod), curl example, test /
    lint commands, TDD approach, design decisions (streaming, Xing exclusion,
    out-of-scope formats), and a "with more time" section.
-10. **Polish (optional)** — Dockerfile, CI workflow (lint + typecheck + test),
-    extra ffmpeg-generated fixtures checked against ffprobe.
+10. **Polish (optional)** — Dockerfile, CI workflow (lint + typecheck + test).
 
 Commit early and often with conventional-commit messages.
 
