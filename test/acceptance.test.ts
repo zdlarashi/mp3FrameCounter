@@ -20,7 +20,7 @@ describe('POST /file-upload (acceptance)', () => {
     await app.close();
   });
 
-  it('responds with the frame count of the sample MP3 as JSON', async () => {
+  it('responds with the frame count of a multipart upload as JSON', async () => {
     const form = new FormData();
     form.append(
       'file',
@@ -32,6 +32,19 @@ describe('POST /file-upload (acceptance)', () => {
       method: 'POST',
       url: '/file-upload',
       payload: form,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['content-type']).toMatch(/^application\/json/);
+    expect(response.json()).toEqual({ frameCount: SAMPLE_MP3_FRAME_COUNT });
+  });
+
+  it('responds with the frame count of a raw audio/mpeg body as JSON', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/file-upload',
+      headers: { 'content-type': 'audio/mpeg' },
+      payload: await readFile(SAMPLE_MP3_PATH),
     });
 
     expect(response.statusCode).toBe(200);

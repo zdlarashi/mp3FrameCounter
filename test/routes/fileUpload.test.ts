@@ -1,3 +1,4 @@
+import { createReadStream } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
@@ -125,8 +126,8 @@ describe('POST /file-upload', () => {
       const response = await server.inject({
         method: 'POST',
         url: '/file-upload',
-        headers: { 'content-type': 'audio/mpeg' },
-        payload: buildFrame(),
+        headers: { 'content-type': 'image/png' },
+        payload: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
       });
       expectJsonError(response, 415, 'FST_ERR_CTP_INVALID_MEDIA_TYPE');
     });
@@ -162,6 +163,78 @@ describe('POST /file-upload', () => {
       const text = Buffer.from('This is a text file, not an MP3.\n'.repeat(50));
       expectJsonError(await upload(mp3Form(text)), 422, 'INVALID_MP3');
     });
+  });
+});
+
+describe('POST /file-upload with a raw body', () => {
+  async function uploadRaw(
+    payload: Buffer | NodeJS.ReadableStream,
+    contentType = 'audio/mpeg',
+    options: AppOptions = {},
+  ): Promise<LightMyRequestResponse> {
+    const server = await createApp(options);
+    return server.inject({
+      method: 'POST',
+      url: '/file-upload',
+      headers: { 'content-type': contentType },
+      payload,
+    });
+  }
+
+  it('responds 200 with the frame count of the sample as JSON', async () => {
+    const response = await uploadRaw(await readFile(SAMPLE_MP3_PATH));
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['content-type']).toMatch(/^application\/json/);
+    expect(response.json()).toEqual({ frameCount: SAMPLE_MP3_FRAME_COUNT });
+  });
+
+  it.each(['audio/mpeg', 'audio/mp3', 'application/octet-stream'])(
+    'accepts Content-Type: %s',
+    async (contentType) => {
+      const response = await uploadRaw(buildFrame(), contentType);
+      expect(response.json()).toEqual({ frameCount: 1 });
+    },
+  );
+
+  it('accepts a streamed body without a Content-Length', async () => {
+    const response = await uploadRaw(createReadStream(SAMPLE_MP3_PATH));
+    expect(response.json()).toEqual({ frameCount: SAMPLE_MP3_FRAME_COUNT });
+  });
+
+  it('responds 400 EMPTY_FILE for an empty body', async () => {
+    expectJsonError(await uploadRaw(Buffer.alloc(0)), 400, 'EMPTY_FILE');
+  });
+
+  it('responds 422 INVALID_MP3 for a body that is not an MP3', async () => {
+    const text = Buffer.from('This is a text file, not an MP3.\n'.repeat(50));
+    expectJsonError(await uploadRaw(text), 422, 'INVALID_MP3');
+  });
+
+  it('responds 413 FILE_TOO_LARGE when Content-Length exceeds the limit', async () => {
+    const data = Buffer.concat([buildFrame(), buildFrame(), buildFrame()]);
+    const response = await uploadRaw(data, 'audio/mpeg', {
+      maxFileSizeBytes: 1000,
+    });
+    expectJsonError(response, 413, 'FILE_TOO_LARGE');
+  });
+
+  it('responds 413 FILE_TOO_LARGE when a streamed body exceeds the limit', async () => {
+    // No Content-Length, so the limit has to be enforced while reading
+    const response = await uploadRaw(
+      createReadStream(SAMPLE_MP3_PATH),
+      'audio/mpeg',
+      { maxFileSizeBytes: 1024 * 1024 },
+    );
+    expectJsonError(response, 413, 'FILE_TOO_LARGE');
+  });
+
+  it('accepts a body exactly at the size limit', async () => {
+    const data = buildFrame();
+    const response = await uploadRaw(data, 'audio/mpeg', {
+      maxFileSizeBytes: data.length,
+    });
+    expect(response.json()).toEqual({ frameCount: 1 });
   });
 });
 

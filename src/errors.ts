@@ -19,8 +19,9 @@ export class MissingFileError extends AppError {
 
   constructor() {
     super(
-      'No file uploaded. Send the MP3 as multipart/form-data, ' +
-        'e.g. curl -F "file=@song.mp3" <host>/file-upload',
+      'No file uploaded. Send the MP3 as multipart/form-data ' +
+        '(curl -F "file=@song.mp3" <host>/file-upload) or as a raw body ' +
+        '(curl -H "Content-Type: audio/mpeg" --data-binary @song.mp3 <host>/file-upload).',
     );
   }
 }

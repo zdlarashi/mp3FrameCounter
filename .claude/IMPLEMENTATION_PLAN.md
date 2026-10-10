@@ -184,7 +184,7 @@ curl -F "file=@test/fixtures/sample.mp3" http://localhost:3000/file-upload
 | ------------------------------------------ | ------ | ------------------------------------------------------------ |
 | Success                                    | 200    | `{ "frameCount": n }`                                        |
 | No body, JSON body, or form without a file | 400    | `{ "error": { "code": "MISSING_FILE", "message": "..." } }`  |
-| Other content type (e.g. raw `audio/mpeg`) | 415    | `FST_ERR_CTP_INVALID_MEDIA_TYPE` (Fastify), same error shape |
+| Other content type (e.g. `image/png`)      | 415    | `FST_ERR_CTP_INVALID_MEDIA_TYPE` (Fastify), same error shape |
 | Empty file                                 | 400    | `EMPTY_FILE`                                                 |
 | File exceeds size limit                    | 413    | `FILE_TOO_LARGE`                                             |
 | No valid MPEG-1 Layer III frames found     | 422    | `INVALID_MP3`                                                |
@@ -337,6 +337,11 @@ Rules of engagement:
     format check, lint, typecheck, test, build on Node from `.nvmrc`, for pushes
     to `main` and pull requests. README badge. A Dockerfile was skipped: the app
     only needs Node, so it would add little.
+11. ✅ **Raw-body uploads** — reviewers may POST the file as a raw body
+    (Postman "binary", `curl --data-binary`), which returned 415. Now
+    `audio/mpeg`, `audio/mp3` and `application/octet-stream` bodies stream
+    into the same counter (`routes/uploadSource.ts`), with the size limit
+    checked from Content-Length and while reading (chunked uploads).
 
 Commit early and often with conventional-commit messages.
 
@@ -354,7 +359,6 @@ Commit early and often with conventional-commit messages.
 
 - Support other MPEG versions/layers via table-driven config.
 - Use Xing/VBRI frame count as a fast path (with caveat that it can be wrong).
-- Accept raw `audio/mpeg` request bodies in addition to multipart.
 - Worker threads / horizontal scaling (parser is already O(1) memory, I/O bound).
 - Property-based tests (fast-check) for chunk-splitting invariance.
 - Request timeouts, rate limiting, OpenAPI docs via `@fastify/swagger`.

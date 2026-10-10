@@ -37,8 +37,18 @@ curl -F "file=@test/fixtures/sample.mp3" http://localhost:3000/file-upload
 
 ### `POST /file-upload`
 
-Upload an MP3 as `multipart/form-data`. The first file in the form is used
-(the field name doesn't matter; `file` is conventional).
+Send the MP3 either way:
+
+- **`multipart/form-data`**: the first file in the form is used (the field
+  name doesn't matter; `file` is conventional).
+- **Raw body** with `Content-Type: audio/mpeg`, `audio/mp3` or
+  `application/octet-stream` (e.g. Postman's "binary" body).
+
+```bash
+curl -F "file=@test/fixtures/sample.mp3" http://localhost:3000/file-upload
+curl -H "Content-Type: audio/mpeg" --data-binary @test/fixtures/sample.mp3 \
+  http://localhost:3000/file-upload
+```
 
 **200 OK** (`Content-Type: application/json; charset=utf-8`)
 
@@ -57,15 +67,15 @@ Upload an MP3 as `multipart/form-data`. The first file in the form is used
 }
 ```
 
-| Status | `code`                           | When                                                    |
-| ------ | -------------------------------- | ------------------------------------------------------- |
-| 400    | `MISSING_FILE`                   | No body, a non-form body (e.g. JSON), or no file part   |
-| 400    | `EMPTY_FILE`                     | The uploaded file is 0 bytes                            |
-| 413    | `FILE_TOO_LARGE`                 | The file exceeds `MAX_FILE_SIZE_MB`                     |
-| 415    | `FST_ERR_CTP_INVALID_MEDIA_TYPE` | Unsupported content type (e.g. a raw `audio/mpeg` body) |
-| 422    | `INVALID_MP3`                    | No MPEG-1 Layer III frames found in the file            |
-| 404    | `NOT_FOUND`                      | Unknown route                                           |
-| 500    | `INTERNAL_ERROR`                 | Unexpected error (details are logged, not returned)     |
+| Status | `code`                           | When                                                         |
+| ------ | -------------------------------- | ------------------------------------------------------------ |
+| 400    | `MISSING_FILE`                   | No body, a non-file body (e.g. JSON), or a form with no file |
+| 400    | `EMPTY_FILE`                     | The uploaded file is 0 bytes                                 |
+| 413    | `FILE_TOO_LARGE`                 | The file exceeds `MAX_FILE_SIZE_MB`                          |
+| 415    | `FST_ERR_CTP_INVALID_MEDIA_TYPE` | Unsupported content type (e.g. `image/png`)                  |
+| 422    | `INVALID_MP3`                    | No MPEG-1 Layer III frames found in the file                 |
+| 404    | `NOT_FOUND`                      | Unknown route                                                |
+| 500    | `INTERNAL_ERROR`                 | Unexpected error (details are logged, not returned)          |
 
 More examples, using files in [`test/fixtures/`](test/fixtures/):
 
@@ -190,6 +200,7 @@ src/
   config.ts               environment variables, validated
   errors.ts               AppError subclasses → HTTP status + error code
   routes/fileUpload.ts    POST /file-upload
+  routes/uploadSource.ts  the uploaded file as a stream (multipart or raw body), size limit
   mp3/
     constants.ts          bitrate / sample-rate tables, channel modes
     frameHeader.ts        parse and validate a 4-byte frame header
@@ -251,8 +262,13 @@ mediainfo --Inform="Audio;%FrameCount%" file.mp3
   the Xing header's own frame-count field is also 6089.
 - **A truncated last frame is counted** if its 4-byte header is intact. That
   matches ffprobe, which counts it too.
-- **Any form field name is accepted.** The spec doesn't name one, so
-  requiring `file` would only cause avoidable errors.
+- **Multipart and raw bodies are both accepted, with any form field name.**
+  The spec says "accepts an MP3 file upload via POST" without naming a
+  format or field, so the endpoint accepts what clients commonly send
+  (`curl -F`, HTML forms, Postman "binary", `--data-binary`). Both paths
+  stream into the same counter and enforce the same size limit. For raw
+  bodies that limit is checked up front from `Content-Length` and again
+  while reading, which covers chunked uploads.
 - **Validated by content, not MIME type or extension.** Clients label
   uploads inconsistently (`audio/mpeg`, `audio/mp3`,
   `application/octet-stream`), so the parser decides.
@@ -274,7 +290,6 @@ mediainfo --Inform="Audio;%FrameCount%" file.mp3
 
 - **Fail fast on non-MP3 uploads**: give up after the first few MB without a
   valid frame instead of reading the whole file.
-- **Accept raw `audio/mpeg` bodies** as well as multipart.
 - **Other MPEG versions and layers**: mostly extra table entries (MPEG-2
   Layer III uses `72 × bitrate / sampleRate`).
 - **Property-based tests** (e.g. fast-check) for the chunking invariance.
