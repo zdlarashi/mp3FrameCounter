@@ -1,6 +1,6 @@
+import { STATUS_CODES } from 'node:http';
 import multipart from '@fastify/multipart';
 import Fastify, {
-  type FastifyError,
   type FastifyInstance,
   type FastifyServerOptions,
 } from 'fastify';
@@ -15,12 +15,22 @@ export interface AppOptions {
   logger?: FastifyServerOptions['logger'];
 }
 
+/** Fastify errors carry a code, but errors from elsewhere may not. */
+type HandledError = Error & { statusCode?: number; code?: string };
+
 export interface ErrorResponse {
   error: { code: string; message: string };
 }
 
 function errorBody(code: string, message: string): ErrorResponse {
   return { error: { code, message } };
+}
+
+/** e.g. 403 → "FORBIDDEN", for errors that don't carry their own code. */
+function statusCodeName(statusCode: number): string {
+  return (STATUS_CODES[statusCode] ?? 'CLIENT_ERROR')
+    .toUpperCase()
+    .replace(/\W+/g, '_');
 }
 
 /**
@@ -33,7 +43,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
   const app = Fastify({ logger: options.logger ?? true });
 
   // Every error response has the same JSON shape: { error: { code, message } }
-  app.setErrorHandler<FastifyError>((error, request, reply) => {
+  app.setErrorHandler<HandledError>((error, request, reply) => {
     if (error instanceof AppError) {
       request.log.info({ code: error.code }, error.message);
       return reply
@@ -47,7 +57,9 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
       request.log.info({ err: error }, 'Client error');
       return reply
         .status(statusCode)
-        .send(errorBody(error.code, error.message));
+        .send(
+          errorBody(error.code ?? statusCodeName(statusCode), error.message),
+        );
     }
 
     // Anything else is a bug: log it, but don't leak details to the client.

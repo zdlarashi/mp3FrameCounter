@@ -308,4 +308,16 @@ describe('unexpected errors', () => {
     expectJsonError(response, 500, 'INTERNAL_ERROR');
     expect(response.body).not.toContain('hunter2');
   });
+
+  it('derives a code from the status for client errors without one', async () => {
+    const server = buildApp({ logger: false });
+    app = server;
+    server.get('/forbidden', () => {
+      throw Object.assign(new Error('Not allowed'), { statusCode: 403 });
+    });
+    await server.ready();
+
+    const response = await server.inject({ method: 'GET', url: '/forbidden' });
+    expectJsonError(response, 403, 'FORBIDDEN');
+  });
 });
