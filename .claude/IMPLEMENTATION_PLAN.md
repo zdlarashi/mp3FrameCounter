@@ -159,6 +159,10 @@ chunks through `countFrames` gives the exact count (2,574,921) at about 8 GB/s,
 with the heap staying under 18 MB. The sample file takes about 5 ms. Parsing
 is far faster than any network upload, so throughput is I/O bound.
 
+**Measured (step 8), over real HTTP:** a 146 MB upload (the sample's audio
+repeated 100 times) counted exactly 608,999 frames in 0.1 s, and the server's
+RSS rose only from about 93 MB to 122 MB.
+
 Upload size limit via `@fastify/multipart` `limits.fileSize` (configurable,
 default e.g. 200 MB); detect `file.truncated` / the plugin's limit error → 413.
 
@@ -175,15 +179,16 @@ curl -F "file=@test/fixtures/sample.mp3" http://localhost:3000/file-upload
 
 **Responses** (all `Content-Type: application/json; charset=utf-8`):
 
-| Case                                   | Status    | Body                                                        |
-| -------------------------------------- | --------- | ----------------------------------------------------------- |
-| Success                                | 200       | `{ "frameCount": n }`                                       |
-| Not multipart / no file part           | 400       | `{ "error": { "code": "MISSING_FILE", "message": "..." } }` |
-| Empty file                             | 400       | `EMPTY_FILE`                                                |
-| File exceeds size limit                | 413       | `FILE_TOO_LARGE`                                            |
-| No valid MPEG-1 Layer III frames found | 422       | `INVALID_MP3`                                               |
-| Unknown route / wrong method           | 404 / 405 | Fastify default, normalised to same error shape             |
-| Unexpected                             | 500       | `INTERNAL_ERROR` (generic message, details logged only)     |
+| Case                                       | Status | Body                                                         |
+| ------------------------------------------ | ------ | ------------------------------------------------------------ |
+| Success                                    | 200    | `{ "frameCount": n }`                                        |
+| No body, JSON body, or form without a file | 400    | `{ "error": { "code": "MISSING_FILE", "message": "..." } }`  |
+| Other content type (e.g. raw `audio/mpeg`) | 415    | `FST_ERR_CTP_INVALID_MEDIA_TYPE` (Fastify), same error shape |
+| Empty file                                 | 400    | `EMPTY_FILE`                                                 |
+| File exceeds size limit                    | 413    | `FILE_TOO_LARGE`                                             |
+| No valid MPEG-1 Layer III frames found     | 422    | `INVALID_MP3`                                                |
+| Unknown route / wrong method               | 404    | `NOT_FOUND`                                                  |
+| Unexpected                                 | 500    | `INTERNAL_ERROR` (generic message, details logged only)      |
 
 Notes:
 
@@ -316,7 +321,7 @@ Rules of engagement:
    3. Counter tests showing the tag frame is excluded only when it is the
       first frame → integrate into `Mp3FrameCounter`. Fixture test turns green.
 7. ✅ **Sample-file unit test** — `countFrames(createReadStream(sample))` → 6089.
-8. **HTTP layer (TDD)** — integration tests for each status code in §5 first →
+8. ✅ **HTTP layer (TDD)** — integration tests for each status code in §5 first →
    `app.ts`, `server.ts`, `config.ts`, route, error classes, error handler.
    The step-2 acceptance test turns green.
 9. **Docs** — README: requirements, install, run (dev/prod), curl example, test /
