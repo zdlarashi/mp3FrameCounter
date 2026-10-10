@@ -1,0 +1,47 @@
+[
+  {
+    "file": "cbr-128k-no-xing.mp3",
+    "description": "CBR 128 kbps without a Xing/Info frame",
+    "frameCount": 40
+  },
+  {
+    "file": "cbr-128k-stereo-44k.mp3",
+    "description": "CBR 128 kbps stereo 44.1 kHz (Info tag)",
+    "frameCount": 40
+  },
+  {
+    "file": "cbr-192k-stereo-48k.mp3",
+    "description": "CBR 192 kbps stereo 48 kHz (Info tag)",
+    "frameCount": 43
+  },
+  {
+    "file": "cbr-64k-mono-44k.mp3",
+    "description": "CBR 64 kbps mono 44.1 kHz (Info tag at mono offset)",
+    "frameCount": 40
+  },
+  {
+    "file": "cbr-96k-stereo-32k.mp3",
+    "description": "CBR 96 kbps stereo 32 kHz (Info tag)",
+    "frameCount": 29
+  },
+  {
+    "file": "id3v1-trailer.mp3",
+    "description": "ID3v2.3 tag and an ID3v1 tag after the last frame",
+    "frameCount": 40
+  },
+  {
+    "file": "id3v2-cover-art.mp3",
+    "description": "ID3v2.3 tag with embedded JPEG cover art",
+    "frameCount": 40
+  },
+  {
+    "file": "vbr-mono-44k.mp3",
+    "description": "VBR mono 44.1 kHz (Xing tag at mono offset)",
+    "frameCount": 40
+  },
+  {
+    "file": "vbr-stereo-44k.mp3",
+    "description": "VBR stereo 44.1 kHz (Xing tag)",
+    "frameCount": 40
+  }
+]

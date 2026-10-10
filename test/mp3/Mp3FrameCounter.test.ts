@@ -8,7 +8,7 @@ import {
   buildFrameHeader,
   type FrameHeaderOptions,
 } from '../helpers/buildFrame.js';
-import { buildId3v2Tag } from '../helpers/buildTags.js';
+import { buildId3v2Tag, buildVbrTagFrame } from '../helpers/buildTags.js';
 import { fixedChunks, randomChunks } from '../helpers/chunking.js';
 
 function count(...chunks: Buffer[]): FrameCountResult {
@@ -92,6 +92,63 @@ describe('Mp3FrameCounter', () => {
     it('ignores a trailing ID3v1 tag', () => {
       const data = Buffer.concat([frames(10), ID3V1_TAG]);
       expect(count(data)).toEqual({ frameCount: 10, skippedBytes: 128 });
+    });
+  });
+
+  describe('VBR/info tag frame', () => {
+    it.each(['Xing', 'Info', 'VBRI'] as const)(
+      'does not count a leading %s frame',
+      (tag) => {
+        const data = Buffer.concat([buildVbrTagFrame(tag), frames(10)]);
+        expect(count(data)).toEqual({ frameCount: 10, skippedBytes: 0 });
+      },
+    );
+
+    it('does not count a mono Xing frame', () => {
+      const mono = { channelModeBits: 0b11 };
+      const data = Buffer.concat([
+        buildVbrTagFrame('Xing', mono),
+        frames(10, mono),
+      ]);
+      expect(count(data).frameCount).toBe(10);
+    });
+
+    it('does not count the tag frame after an ID3v2 tag', () => {
+      const data = Buffer.concat([
+        buildId3v2Tag(),
+        buildVbrTagFrame('Info'),
+        frames(10),
+      ]);
+      expect(count(data).frameCount).toBe(10);
+    });
+
+    it('does not count the tag frame after leading junk', () => {
+      const data = Buffer.concat([
+        junk(20),
+        buildVbrTagFrame('Xing'),
+        frames(10),
+      ]);
+      expect(count(data)).toEqual({ frameCount: 10, skippedBytes: 20 });
+    });
+
+    it('does not count the tag frame when fed in 1-byte chunks', () => {
+      const data = Buffer.concat([buildVbrTagFrame('Xing'), frames(10)]);
+      expect(count(...fixedChunks(data, 1)).frameCount).toBe(10);
+    });
+
+    it('counts 0 frames for a file containing only a tag frame', () => {
+      expect(count(buildVbrTagFrame('Info')).frameCount).toBe(0);
+    });
+
+    it('counts a frame that looks like a tag frame if it is not the first', () => {
+      // Only the first frame can be a tag frame; later ones are audio that
+      // happens to contain the same bytes.
+      const data = Buffer.concat([
+        frames(5),
+        buildVbrTagFrame('Xing'),
+        frames(5),
+      ]);
+      expect(count(data).frameCount).toBe(11);
     });
   });
 

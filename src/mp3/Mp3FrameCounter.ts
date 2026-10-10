@@ -1,9 +1,10 @@
 import { FRAME_HEADER_SIZE } from './constants.js';
 import { parseFrameHeader } from './frameHeader.js';
 import { ID3V2_HEADER_SIZE, getId3v2TagSize } from './id3.js';
+import { isVbrTagFrame } from './xing.js';
 
 export interface FrameCountResult {
-  /** Number of MPEG-1 Layer III frames found. */
+  /** Number of MPEG-1 Layer III audio frames found (a leading Xing/Info/VBRI tag frame is not counted). */
   readonly frameCount: number;
   /** Bytes that were neither part of a frame nor of the leading ID3v2 tag (junk, trailing tags). */
   readonly skippedBytes: number;
@@ -39,6 +40,7 @@ export class Mp3FrameCounter {
   #bytesToSkip = 0;
   /** Unprocessed bytes from the previous chunk (a partial header or unconfirmed frame). */
   #pending: Uint8Array = EMPTY;
+  #foundFirstFrame = false;
   #finished = false;
 
   push(chunk: Uint8Array): void {
@@ -130,7 +132,16 @@ export class Mp3FrameCounter {
             pos = this.#skipToNextSyncCandidate(buffer, pos);
             break;
           }
-          this.#frameCount++;
+
+          // The first frame is always confirmed here, with the whole frame in
+          // `buffer`. If it's a Xing/Info/VBRI tag frame it holds metadata,
+          // not audio, so it isn't counted.
+          const isTagFrame =
+            !this.#foundFirstFrame &&
+            isVbrTagFrame(buffer.subarray(pos, nextPos), header);
+          this.#foundFirstFrame = true;
+          if (!isTagFrame) this.#frameCount++;
+
           this.#state = 'synced';
           pos = nextPos;
           break;

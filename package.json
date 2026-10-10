@@ -29,7 +29,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "fixtures:generate": "./scripts/generate-fixtures.sh"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

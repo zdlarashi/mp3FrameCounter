@@ -1,3 +1,5 @@
+import { buildFrame, type FrameHeaderOptions } from './buildFrame.js';
+
 /**
  * Builders for the non-audio metadata tags found in MP3 files.
  */
@@ -38,4 +40,26 @@ export function buildId3v2Tag(options: Id3v2TagOptions = {}): Buffer {
     : Buffer.alloc(0);
 
   return Buffer.concat([header, payload, footer]);
+}
+
+export type VbrTagId = 'Xing' | 'Info' | 'VBRI';
+
+/**
+ * Builds an MPEG-1 Layer III frame carrying a VBR/info tag instead of audio,
+ * as written by encoders in the first frame of a file.
+ *
+ * Xing/Info sit after the side info: 4-byte header + 2-byte CRC (if present)
+ * + 17 bytes (mono) or 32 bytes (other modes). VBRI is always 32 bytes after
+ * the header. Pass `offset` to put the tag somewhere else.
+ */
+export function buildVbrTagFrame(
+  tag: VbrTagId,
+  options: FrameHeaderOptions = {},
+  offset?: number,
+): Buffer {
+  const frame = buildFrame(options);
+  const isMono = options.channelModeBits === 0b11;
+  const xingOffset = 4 + (options.crc ? 2 : 0) + (isMono ? 17 : 32);
+  frame.write(tag, offset ?? (tag === 'VBRI' ? 36 : xingOffset), 'ascii');
+  return frame;
 }

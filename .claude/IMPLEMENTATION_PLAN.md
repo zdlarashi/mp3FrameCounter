@@ -234,7 +234,7 @@ mediainfo --Inform="Audio;%FrameCount%" sample.mp3
 test helper, so they share our understanding of the format. Real encoder
 output, checked against ffprobe, tests against reality:
 
-- `scripts/generate-fixtures.sh` makes ~1 s clips with `ffmpeg`/libmp3lame
+- `scripts/generate-fixtures.sh` (`npm run fixtures:generate`) makes ~1 s clips with `ffmpeg`/libmp3lame
   and writes `test/fixtures/generated/manifest.json` with each file's
   description and ffprobe frame count.
 - The generated `.mp3` files and the manifest are committed, so running the
@@ -302,7 +302,7 @@ Rules of engagement:
 4. ✅ **ID3v2 skipping (TDD)** — syncsafe/footer tests → `id3.ts`.
 5. ✅ **Streaming counter (TDD)** — tests for N frames, junk/resync, trailing
    ID3v1, truncated final frame, 1-byte & random chunking → `Mp3FrameCounter`.
-6. **Xing/Info/VBRI exclusion (TDD)**
+6. ✅ **Xing/Info/VBRI exclusion (TDD)**
    1. Add `scripts/generate-fixtures.sh`, the generated fixtures and the
       manifest (§6), plus a parametrised test comparing the counter with
       ffprobe. **Red:** files with an Info/Xing tag are off by one.
