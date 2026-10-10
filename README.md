@@ -302,5 +302,14 @@ mediainfo --Inform="Audio;%FrameCount%" file.mp3
 - **Other MPEG versions and layers**: mostly extra table entries (MPEG-2
   Layer III uses `72 × bitrate / sampleRate`).
 - **Property-based tests** (e.g. fast-check) for the chunking invariance.
+- **Parser edge cases** (rare in real files, left as is to keep the parser
+  simple):
+  - ID3v2 is only detected at byte 0. Stacked tags, or junk before the tag,
+    are handled by resync rather than skipped as tags.
+  - A single-frame file followed by 1–3 junk bytes counts 0: the frame is
+    neither confirmed by a following header nor ends exactly at the end of
+    the stream.
+  - `Mp3FrameCounter` uses `Buffer.concat`, its only Node-specific API;
+    a `Uint8Array` equivalent would make it runtime-agnostic.
 - **Operations**: request timeouts, rate limiting, OpenAPI docs via
   `@fastify/swagger`.
