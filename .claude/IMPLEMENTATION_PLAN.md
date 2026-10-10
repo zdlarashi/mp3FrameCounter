@@ -324,7 +324,7 @@ Rules of engagement:
 8. ✅ **HTTP layer (TDD)** — integration tests for each status code in §5 first →
    `app.ts`, `server.ts`, `config.ts`, route, error classes, error handler.
    The step-2 acceptance test turns green.
-9. **Docs** — README: requirements, install, run (dev/prod), curl example, test /
+9. ✅ **Docs** — README: requirements, install, run (dev/prod), curl example, test /
    lint commands, TDD approach, design decisions (streaming, Xing exclusion,
    out-of-scope formats), and a "with more time" section.
 10. **Polish (optional)** — Dockerfile, CI workflow (lint + typecheck + test).
