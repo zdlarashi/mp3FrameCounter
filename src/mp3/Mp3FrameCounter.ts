@@ -15,7 +15,10 @@ export interface FrameCountResult {
  * - `searching`: looking for a frame header. A header found here only counts
  *   if another valid header follows it, so stray 0xFF bytes in junk or
  *   metadata are not mistaken for frames.
- * - `synced`: the next frame is expected right where the previous one ended.
+ * - `synced`: the next frame is expected right where the previous one ended,
+ *   with the same sample rate. A different rate drops back to `searching`,
+ *   so a real rate change (e.g. concatenated files) is confirmed like any
+ *   new frame, but a single stray header isn't counted.
  */
 type State = 'start' | 'searching' | 'synced';
 
@@ -41,6 +44,8 @@ export class Mp3FrameCounter {
   /** Unprocessed bytes from the previous chunk (a partial header or unconfirmed frame). */
   #pending: Uint8Array = EMPTY;
   #foundFirstFrame = false;
+  /** Sample rate of the frames being counted (set when a frame is confirmed). */
+  #sampleRate: number | null = null;
   #finished = false;
 
   push(chunk: Uint8Array): void {
@@ -98,8 +103,9 @@ export class Mp3FrameCounter {
             return isFinal ? this.#discardRest(buffer, pos) : pos;
           }
           const header = parseFrameHeader(buffer, pos);
-          if (header === null) {
-            // Lost sync (junk, trailing tag, corruption): scan for the next frame.
+          if (header?.sampleRate !== this.#sampleRate) {
+            // Lost sync (junk, trailing tag, corruption) or the stream changed:
+            // look for (and confirm) the next frame.
             this.#state = 'searching';
             break;
           }
@@ -118,14 +124,16 @@ export class Mp3FrameCounter {
             break;
           }
 
-          // Confirm the candidate: the next frame must start where this one ends.
+          // Confirm the candidate: the next frame must start where this one
+          // ends, with the same sample rate.
           const nextPos = pos + header.frameLength;
           const hasRoomForNextHeader =
             nextPos + FRAME_HEADER_SIZE <= buffer.length;
           if (!hasRoomForNextHeader && !isFinal) return pos;
 
           const isConfirmed = hasRoomForNextHeader
-            ? parseFrameHeader(buffer, nextPos) !== null
+            ? parseFrameHeader(buffer, nextPos)?.sampleRate ===
+              header.sampleRate
             : nextPos === buffer.length; // a lone frame ending exactly at end of stream
 
           if (!isConfirmed) {
@@ -143,6 +151,7 @@ export class Mp3FrameCounter {
           if (!isTagFrame) this.#frameCount++;
 
           this.#state = 'synced';
+          this.#sampleRate = header.sampleRate;
           pos = nextPos;
           break;
         }

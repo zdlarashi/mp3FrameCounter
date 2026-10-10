@@ -179,6 +179,28 @@ describe('Mp3FrameCounter', () => {
       expect(count(data).frameCount).toBe(0);
     });
 
+    it('does not count a header in sync position with a different sample rate', () => {
+      // Sits exactly where the next frame is expected, but nothing follows it
+      const falseSync = buildFrame({ sampleRateIndex: 1 });
+      const data = Buffer.concat([frames(3), falseSync, junk(10), frames(3)]);
+      expect(count(data).frameCount).toBe(6);
+    });
+
+    it('does not confirm a header followed by one with a different sample rate', () => {
+      const falseSync = buildFrame({ sampleRateIndex: 1 });
+      const data = Buffer.concat([junk(10), falseSync, frames(3)]);
+      expect(count(data).frameCount).toBe(3);
+    });
+
+    it('counts every frame across a genuine sample-rate change', () => {
+      // e.g. two files concatenated
+      const data = Buffer.concat([
+        frames(3),
+        frames(3, { sampleRateIndex: 1 }),
+      ]);
+      expect(count(data).frameCount).toBe(6);
+    });
+
     it('counts 0 frames for data that is not an MP3', () => {
       const text = Buffer.from('This is not an MP3 file. '.repeat(100));
       expect(count(text)).toEqual({
