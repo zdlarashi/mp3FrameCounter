@@ -1,5 +1,7 @@
 # mp3FrameCounter
 
+[![CI](https://github.com/zdlarashi/mp3FrameCounter/actions/workflows/ci.yml/badge.svg)](https://github.com/zdlarashi/mp3FrameCounter/actions/workflows/ci.yml)
+
 A TypeScript API that counts the frames in an uploaded MP3 file. The MPEG
 frame parsing is written from scratch: no MP3 or audio libraries are used.
 
@@ -124,6 +126,9 @@ PORT=8080 MAX_FILE_SIZE_MB=50 npm start
 | `npm run typecheck`         | TypeScript type check                              |
 | `npm run format`            | Format with Prettier (`format:check` to verify)    |
 | `npm run fixtures:generate` | Regenerate the ffmpeg test fixtures (needs ffmpeg) |
+
+CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs format check,
+lint, type check, tests and build on every push and pull request.
 
 Tooling: TypeScript (strict, plus `noUncheckedIndexedAccess` and
 `exactOptionalPropertyTypes`), Fastify, Vitest, ESLint, Prettier.
@@ -273,5 +278,5 @@ mediainfo --Inform="Audio;%FrameCount%" file.mp3
 - **Other MPEG versions and layers**: mostly extra table entries (MPEG-2
   Layer III uses `72 × bitrate / sampleRate`).
 - **Property-based tests** (e.g. fast-check) for the chunking invariance.
-- **Operations**: Dockerfile, CI (lint, type check, test), request
-  timeouts, rate limiting, OpenAPI docs via `@fastify/swagger`.
+- **Operations**: request timeouts, rate limiting, OpenAPI docs via
+  `@fastify/swagger`.

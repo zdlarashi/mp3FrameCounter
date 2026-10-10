@@ -333,7 +333,10 @@ Rules of engagement:
    MPEG-1 Layer II. HTTP tests upload every fixture file (200s with ffprobe
    counts, 400/422 for the error files, 413 for the sample with a 1 MiB
    limit). The README examples use these files.
-10. **Polish (optional)** — Dockerfile, CI workflow (lint + typecheck + test).
+10. ✅ **CI** — GitHub Actions workflow (`.github/workflows/ci.yml`): `npm ci`,
+    format check, lint, typecheck, test, build on Node from `.nvmrc`, for pushes
+    to `main` and pull requests. README badge. A Dockerfile was skipped: the app
+    only needs Node, so it would add little.
 
 Commit early and often with conventional-commit messages.
 
