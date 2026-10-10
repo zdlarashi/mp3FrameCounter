@@ -268,7 +268,7 @@ Rules of engagement:
    (+ `@vitest/coverage-v8`), `.gitignore`, `.nvmrc`, npm scripts. Move the
    sample to `test/fixtures/sample.mp3`. Add one trivial test to prove
    the test runner works. Commit: `chore: scaffold TypeScript project with tooling`.
-2. **Acceptance test (red)** — integration test for `POST /file-upload` with the
+2. ✅ **Acceptance test (red)** — integration test for `POST /file-upload` with the
    sample expecting `{ frameCount: 6089 }` and a JSON content type. Marked
    `it.fails`/`it.todo` until step 8 makes it pass.
 3. **Header parsing (TDD)** — `buildFrame` test helper first, then tests for
