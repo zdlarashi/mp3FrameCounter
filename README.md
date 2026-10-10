@@ -65,15 +65,32 @@ Upload an MP3 as `multipart/form-data`. The first file in the form is used
 | 404    | `NOT_FOUND`                      | Unknown route                                           |
 | 500    | `INTERNAL_ERROR`                 | Unexpected error (details are logged, not returned)     |
 
-More examples:
+More examples, using files in [`test/fixtures/`](test/fixtures/):
 
 ```bash
-# A file that isn't an MP3 → 422
-echo "hello" > notes.txt
-curl -F "file=@notes.txt" http://localhost:3000/file-upload
+URL=http://localhost:3000/file-upload
 
-# No file → 400
-curl -X POST http://localhost:3000/file-upload
+# Other valid MP3s → 200 (expected counts in test/fixtures/generated/manifest.json)
+curl -F "file=@test/fixtures/generated/vbr-mono-44k.mp3" $URL        # {"frameCount":40}
+curl -F "file=@test/fixtures/generated/id3v2-cover-art.mp3" $URL     # {"frameCount":40}
+
+# Empty file → 400 EMPTY_FILE
+curl -F "file=@test/fixtures/errors/empty.mp3" $URL
+
+# Text file named .mp3 → 422 INVALID_MP3
+curl -F "file=@test/fixtures/errors/not-an-mp3.mp3" $URL
+
+# Real MP3s outside the MPEG-1 Layer III scope → 422 INVALID_MP3
+curl -F "file=@test/fixtures/errors/mpeg2-layer3-22k.mp3" $URL       # MPEG-2 Layer III
+curl -F "file=@test/fixtures/errors/mpeg25-layer3-11k.mp3" $URL      # MPEG-2.5 Layer III
+curl -F "file=@test/fixtures/errors/mpeg1-layer2.mp2" $URL           # MPEG-1 Layer II
+
+# No file → 400 MISSING_FILE
+curl -X POST $URL
+
+# Too large → 413 FILE_TOO_LARGE (start the server with a 1 MiB limit first)
+MAX_FILE_SIZE_MB=1 npm start
+curl -F "file=@test/fixtures/sample.mp3" $URL
 ```
 
 ### `GET /health`
@@ -181,6 +198,7 @@ test/
   helpers/                builders for synthetic frames and tags
   fixtures/sample.mp3     provided sample
   fixtures/generated/     ffmpeg-made fixtures + ffprobe frame counts
+  fixtures/errors/        uploads that must be rejected (empty, text, MPEG-2/2.5, Layer II)
 scripts/
   generate-fixtures.sh    regenerates test/fixtures/generated
 ```
@@ -205,10 +223,13 @@ The tests come in three layers:
 2. **Real encoder output**: `scripts/generate-fixtures.sh` uses ffmpeg to make
    CBR, VBR, mono, 32/44.1/48 kHz files, plus files with no Xing frame, with
    ID3v2 cover art, and with an ID3v1 trailer. Their ffprobe frame counts are
-   stored in `manifest.json` and the counter must match each one. The files
-   are committed, so ffmpeg isn't needed to run the tests.
-3. **HTTP**: every status code is tested through Fastify's `inject()`, plus
-   the acceptance test with the sample.
+   stored in `manifest.json` and the counter must match each one. The script
+   also makes files the API must reject in `test/fixtures/errors/`: an empty
+   file, a text file, and genuine MPEG-2, MPEG-2.5 and Layer II files. The
+   files are committed, so ffmpeg isn't needed to run the tests.
+3. **HTTP**: every status code is tested through Fastify's `inject()`. Every
+   fixture file is also uploaded through the endpoint, plus the acceptance
+   test with the sample.
 
 To check any file yourself against ffprobe or mediainfo:
 
@@ -232,7 +253,10 @@ mediainfo --Inform="Audio;%FrameCount%" file.mp3
   `application/octet-stream`), so the parser decides.
 - **Only MPEG-1 Layer III is supported**, as the spec allows. Other versions
   and layers are treated as invalid headers, so a file made only of them
-  returns 422.
+  returns 422. They are rejected twice over: by the version/layer check, and,
+  even without it, by the rule that the next header must follow, because the
+  frame lengths from MPEG-1 tables don't match (checked by temporarily
+  disabling the version check).
 
 ## Out of scope
 

@@ -59,6 +59,7 @@ test/
   routes/fileUpload.test.ts  # integration tests via app.inject()
   fixtures/sample.mp3    # provided sample file
   fixtures/generated/    # ffmpeg-generated fixtures + manifest.json (step 6)
+  fixtures/errors/       # uploads that must be rejected (after step 9)
 scripts/
   generate-fixtures.sh   # regenerates test/fixtures/generated
 ```
@@ -327,6 +328,11 @@ Rules of engagement:
 9. ✅ **Docs** — README: requirements, install, run (dev/prod), curl example, test /
    lint commands, TDD approach, design decisions (streaming, Xing exclusion,
    out-of-scope formats), and a "with more time" section.
+   9a. ✅ **Error fixtures** — `scripts/generate-fixtures.sh` also writes
+   `test/fixtures/errors/`: empty, text, MPEG-2 and MPEG-2.5 Layer III, and
+   MPEG-1 Layer II. HTTP tests upload every fixture file (200s with ffprobe
+   counts, 400/422 for the error files, 413 for the sample with a 1 MiB
+   limit). The README examples use these files.
 10. **Polish (optional)** — Dockerfile, CI workflow (lint + typecheck + test).
 
 Commit early and often with conventional-commit messages.

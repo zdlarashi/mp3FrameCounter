@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
-# Generates small MP3 test fixtures with ffmpeg (libmp3lame) and records the
-# frame count ffprobe reports for each one in manifest.json.
+# Generates small MP3 test fixtures with ffmpeg (libmp3lame):
+#
+# - test/fixtures/generated/: valid MPEG-1 Layer III files, with the frame
+#   count ffprobe reports for each one in manifest.json
+# - test/fixtures/errors/: uploads the API must reject (empty, not audio,
+#   other MPEG versions/layers)
 #
 # The generated files are committed, so the tests don't need ffmpeg. Run this
 # only to regenerate or add fixtures:
@@ -10,12 +14,14 @@
 # Requires: ffmpeg and ffprobe built with libmp3lame.
 set -euo pipefail
 
-OUT_DIR="$(cd "$(dirname "$0")/.." && pwd)/test/fixtures/generated"
+FIXTURES_DIR="$(cd "$(dirname "$0")/.." && pwd)/test/fixtures"
+OUT_DIR="$FIXTURES_DIR/generated"
+ERR_DIR="$FIXTURES_DIR/errors"
 WORK_DIR="$(mktemp -d)"
 trap 'rm -rf "$WORK_DIR"' EXIT
 
-mkdir -p "$OUT_DIR"
-rm -f "$OUT_DIR"/*.mp3 "$OUT_DIR/manifest.json"
+mkdir -p "$OUT_DIR" "$ERR_DIR"
+rm -f "$OUT_DIR"/*.mp3 "$OUT_DIR/manifest.json" "$ERR_DIR"/*
 
 # 1 second of a 440 Hz tone (a varying signal so VBR frame sizes change)
 SOURCE=(-f lavfi -i "sine=frequency=440:duration=1,volume='0.2+0.8*t':eval=frame")
@@ -81,5 +87,24 @@ frame_count() {
   echo "]"
 } > "$OUT_DIR/manifest.json"
 
+# --- Files the API must reject -------------------------------------------
+
+# 0 bytes → 400 EMPTY_FILE
+: > "$ERR_DIR/empty.mp3"
+
+# Text with an .mp3 extension → 422 INVALID_MP3
+printf 'This is a text file with an .mp3 extension, not audio.\n' > "$ERR_DIR/not-an-mp3.mp3"
+
+# Real MP3s outside the MPEG-1 Layer III scope → 422 INVALID_MP3.
+# Sample rates below 32 kHz make libmp3lame write MPEG-2 (22.05 kHz) or
+# MPEG-2.5 (11.025 kHz) frames.
+ffmpeg -v error -y "${SOURCE[@]}" -ar 22050 -c:a libmp3lame -b:a 64k "${NO_TAGS[@]}" "$ERR_DIR/mpeg2-layer3-22k.mp3"
+ffmpeg -v error -y "${SOURCE[@]}" -ar 11025 -c:a libmp3lame -b:a 32k "${NO_TAGS[@]}" "$ERR_DIR/mpeg25-layer3-11k.mp3"
+# MPEG-1 Layer II (.mp2)
+ffmpeg -v error -y "${SOURCE[@]}" -ar 44100 -c:a mp2 -b:a 128k "${NO_TAGS[@]}" "$ERR_DIR/mpeg1-layer2.mp2"
+
 echo "Generated fixtures in $OUT_DIR:"
 cat "$OUT_DIR/manifest.json"
+echo
+echo "Generated error fixtures in $ERR_DIR:"
+ls -l "$ERR_DIR"

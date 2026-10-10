@@ -1,12 +1,18 @@
 import { readFile } from 'node:fs/promises';
+import { basename, join } from 'node:path';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
 import { buildApp, type AppOptions } from '../../src/app.js';
 import { buildFrame } from '../helpers/buildFrame.js';
 import {
+  ERROR_FIXTURES_DIR,
+  GENERATED_FIXTURES_DIR,
   SAMPLE_MP3_FRAME_COUNT,
   SAMPLE_MP3_PATH,
+  loadGeneratedFixtures,
 } from '../helpers/fixtures.js';
+
+const generated = await loadGeneratedFixtures();
 
 let app: FastifyInstance | undefined;
 
@@ -21,10 +27,18 @@ afterEach(async () => {
   app = undefined;
 });
 
-function mp3Form(data: Uint8Array, fieldName = 'file'): FormData {
+function mp3Form(
+  data: Uint8Array,
+  fieldName = 'file',
+  filename = 'test.mp3',
+): FormData {
   const form = new FormData();
-  form.append(fieldName, new Blob([data], { type: 'audio/mpeg' }), 'test.mp3');
+  form.append(fieldName, new Blob([data], { type: 'audio/mpeg' }), filename);
   return form;
+}
+
+async function fileForm(path: string): Promise<FormData> {
+  return mp3Form(await readFile(path), 'file', basename(path));
 }
 
 async function upload(
@@ -148,6 +162,39 @@ describe('POST /file-upload', () => {
       const text = Buffer.from('This is a text file, not an MP3.\n'.repeat(50));
       expectJsonError(await upload(mp3Form(text)), 422, 'INVALID_MP3');
     });
+  });
+});
+
+describe('POST /file-upload with fixture files', () => {
+  it.each(generated)(
+    'responds 200 with the ffprobe frame count for $file',
+    async ({ file, frameCount }) => {
+      const response = await upload(
+        await fileForm(join(GENERATED_FIXTURES_DIR, file)),
+      );
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ frameCount });
+    },
+  );
+
+  it.each([
+    ['empty.mp3', 400, 'EMPTY_FILE'],
+    ['not-an-mp3.mp3', 422, 'INVALID_MP3'],
+    ['mpeg2-layer3-22k.mp3', 422, 'INVALID_MP3'],
+    ['mpeg25-layer3-11k.mp3', 422, 'INVALID_MP3'],
+    ['mpeg1-layer2.mp2', 422, 'INVALID_MP3'],
+  ])('responds %s → %i %s', async (file, statusCode, code) => {
+    const response = await upload(
+      await fileForm(join(ERROR_FIXTURES_DIR, file)),
+    );
+    expectJsonError(response, statusCode, code);
+  });
+
+  it('responds 413 FILE_TOO_LARGE for the sample with a 1 MiB limit', async () => {
+    const response = await upload(await fileForm(SAMPLE_MP3_PATH), {
+      maxFileSizeBytes: 1024 * 1024,
+    });
+    expectJsonError(response, 413, 'FILE_TOO_LARGE');
   });
 });
 
