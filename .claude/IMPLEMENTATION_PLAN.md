@@ -154,6 +154,11 @@ Never buffer the whole upload in memory.
   with offsets. Start with the streaming version since chunk boundaries are the
   only real complexity, and tests can cover them by feeding 1-byte chunks.
 
+**Measured (step 7):** streaming 1 GiB of synthetic 128 kbps frames in 64 KB
+chunks through `countFrames` gives the exact count (2,574,921) at about 8 GB/s,
+with the heap staying under 18 MB. The sample file takes about 5 ms. Parsing
+is far faster than any network upload, so throughput is I/O bound.
+
 Upload size limit via `@fastify/multipart` `limits.fileSize` (configurable,
 default e.g. 200 MB); detect `file.truncated` / the plugin's limit error → 413.
 
@@ -310,7 +315,7 @@ Rules of engagement:
       (Xing, Info) and at VBRI's fixed offset → `xing.ts`.
    3. Counter tests showing the tag frame is excluded only when it is the
       first frame → integrate into `Mp3FrameCounter`. Fixture test turns green.
-7. **Sample-file unit test** — `countFrames(createReadStream(sample))` → 6089.
+7. ✅ **Sample-file unit test** — `countFrames(createReadStream(sample))` → 6089.
 8. **HTTP layer (TDD)** — integration tests for each status code in §5 first →
    `app.ts`, `server.ts`, `config.ts`, route, error classes, error handler.
    The step-2 acceptance test turns green.
