@@ -64,6 +64,15 @@ function expectJsonError(
   expect(body.error.message.length).toBeGreaterThan(0);
 }
 
+/**
+ * 413s also close the connection, so the server doesn't keep reading (and
+ * discarding) the rest of an oversized upload.
+ */
+function expectFileTooLarge(response: LightMyRequestResponse): void {
+  expectJsonError(response, 413, 'FILE_TOO_LARGE');
+  expect(response.headers.connection).toBe('close');
+}
+
 describe('POST /file-upload', () => {
   describe('success', () => {
     it('responds 200 with the frame count of the sample as JSON', async () => {
@@ -145,7 +154,7 @@ describe('POST /file-upload', () => {
       const response = await upload(mp3Form(data), {
         maxFileSizeBytes: 1000,
       });
-      expectJsonError(response, 413, 'FILE_TOO_LARGE');
+      expectFileTooLarge(response);
       expect(
         response.json<{ error: { message: string } }>().error.message,
       ).toMatch(/1000 bytes/);
@@ -216,7 +225,7 @@ describe('POST /file-upload with a raw body', () => {
     const response = await uploadRaw(data, 'audio/mpeg', {
       maxFileSizeBytes: 1000,
     });
-    expectJsonError(response, 413, 'FILE_TOO_LARGE');
+    expectFileTooLarge(response);
   });
 
   it('responds 413 FILE_TOO_LARGE when a streamed body exceeds the limit', async () => {
@@ -226,7 +235,7 @@ describe('POST /file-upload with a raw body', () => {
       'audio/mpeg',
       { maxFileSizeBytes: 1024 * 1024 },
     );
-    expectJsonError(response, 413, 'FILE_TOO_LARGE');
+    expectFileTooLarge(response);
   });
 
   it('accepts a body exactly at the size limit', async () => {
@@ -267,7 +276,7 @@ describe('POST /file-upload with fixture files', () => {
     const response = await upload(await fileForm(SAMPLE_MP3_PATH), {
       maxFileSizeBytes: 1024 * 1024,
     });
-    expectJsonError(response, 413, 'FILE_TOO_LARGE');
+    expectFileTooLarge(response);
   });
 });
 

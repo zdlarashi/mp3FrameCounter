@@ -44,6 +44,10 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
 
   // Every error response has the same JSON shape: { error: { code, message } }
   app.setErrorHandler<HandledError>((error, request, reply) => {
+    // Too large: close the connection after replying. Otherwise Node reads
+    // (and discards) the rest of the upload to reuse the connection.
+    if (error.statusCode === 413) reply.header('connection', 'close');
+
     if (error instanceof AppError) {
       request.log.info({ code: error.code }, error.message);
       return reply
@@ -80,9 +84,11 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
       );
   });
 
-  // One file per request, streamed; the limit ends the stream early.
+  // One file per request, streamed. The route enforces the size limit itself
+  // (it stops reading at the first byte over); the plugin's limit, one byte
+  // higher, is only a backstop.
   void app.register(multipart, {
-    limits: { fileSize: maxFileSizeBytes, files: 1 },
+    limits: { fileSize: maxFileSizeBytes + 1, files: 1 },
   });
   void app.register(fileUploadRoute, { maxFileSizeBytes });
 

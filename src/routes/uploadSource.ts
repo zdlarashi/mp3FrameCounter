@@ -37,13 +37,9 @@ export async function getUploadSource(
   if (request.isMultipart()) {
     const part = await request.file();
     if (part === undefined) throw new MissingFileError();
-    // The multipart plugin enforces the size limit and ends the stream early.
-    return {
-      chunks: part.file,
-      filename: part.filename,
-      bytesRead: () => part.file.bytesRead,
-      exceededLimit: () => part.file.truncated,
-    };
+    // Not the plugin's limit: it only ends the file stream when the part ends,
+    // i.e. after the client has sent the whole upload.
+    return limitSize(part.file, maxFileSizeBytes, part.filename);
   }
 
   if (request.body instanceof Readable) {
@@ -59,10 +55,15 @@ export async function getUploadSource(
 }
 
 /**
- * Wraps a raw body stream so reading stops once it exceeds `maxBytes`
- * (needed when there is no Content-Length, e.g. chunked uploads).
+ * Wraps an upload stream so reading stops as soon as it exceeds `maxBytes`
+ * (for raw bodies, needed when there is no Content-Length, e.g. chunked
+ * uploads).
  */
-function limitSize(stream: Readable, maxBytes: number): UploadSource {
+function limitSize(
+  stream: Readable,
+  maxBytes: number,
+  filename?: string,
+): UploadSource {
   let bytesRead = 0;
   let exceededLimit = false;
 
@@ -81,7 +82,7 @@ function limitSize(stream: Readable, maxBytes: number): UploadSource {
 
   return {
     chunks: chunks(),
-    filename: undefined,
+    filename,
     bytesRead: () => bytesRead,
     exceededLimit: () => exceededLimit,
   };
