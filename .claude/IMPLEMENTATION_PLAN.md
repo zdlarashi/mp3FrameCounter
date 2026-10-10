@@ -274,7 +274,7 @@ Rules of engagement:
 3. ✅ **Header parsing (TDD)** — `buildFrame` test helper first, then tests for
    valid/invalid headers and frame lengths → `constants.ts`, `frameHeader.ts`.
    Commit: `feat(mp3): parse MPEG-1 Layer III frame headers`.
-4. **ID3v2 skipping (TDD)** — syncsafe/footer tests → `id3.ts`.
+4. ✅ **ID3v2 skipping (TDD)** — syncsafe/footer tests → `id3.ts`.
 5. **Streaming counter (TDD)** — tests for N frames, junk/resync, trailing
    ID3v1, truncated final frame, 1-byte & random chunking → `Mp3FrameCounter`.
 6. **Xing/Info/VBRI exclusion (TDD)** — mono/stereo/CRC offset tests → `xing.ts`,
